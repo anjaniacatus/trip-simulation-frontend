@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import TripForm from './TripFormComponent';
+import TripForm from './components/TripFormComponent';
 
 // Define types for the API response
 
@@ -50,8 +50,12 @@ function App() {
 
         {/* Form Component */}
         <TripForm onSubmit={handleFormSubmit} />
+        {result && (
+          <div className="mt-6 p-4 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Trip Result</h2>
+          </div>)}
 
-             </div>
+      </div>
     </div>
   );
 }
