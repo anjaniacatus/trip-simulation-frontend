@@ -167,7 +167,7 @@ function MapComponent({ result }: MapComponentProps) {
       const bounds = coordinates.reduce((bounds, coord) => {
         return bounds.extend(coord);
       }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-      map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+      map.current.fitBounds(bounds, { padding: 50 });
     }
   }, [result, isStyleLoaded]); // This effect runs when result OR isStyleLoaded changes
 
