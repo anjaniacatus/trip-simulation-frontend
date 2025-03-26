@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import TripForm from './components/TripFormComponent';
+import MapComponent from './components/MapComponent';
 
 // Define types for the API response
 
@@ -27,10 +28,12 @@ interface TripResult {
 function App() {
 
   const [result, setResult] = useState<TripResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   const handleFormSubmit = async (data: Inputs) => {
     try {
       // Send the form data to the backend
-      const response = await axios.post('http://localhost:8000/plan_trip/', {
+      const response = await axios.post('http://127.0.0.1:8000/plan_trip/', {
         current_location: data.current,
         pickup_location: data.pickup,
         dropoff_location: data.dropoff,
@@ -38,8 +41,8 @@ function App() {
       });
       // Update the result state with the API response
       setResult(response.data as TripResult);
-    } catch (error) {
-      console.error('Error planning trip:', error);
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'An error ocurred while planning the trip');
     }
   };
   return (
@@ -50,9 +53,16 @@ function App() {
 
         {/* Form Component */}
         <TripForm onSubmit={handleFormSubmit} />
+        {/* Display error message if there is one */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
         {result && (
           <div className="mt-6 p-4 bg-white rounded-lg shadow-md">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Trip Result</h2>
+            <MapComponent result={result} />
           </div>)}
 
       </div>
