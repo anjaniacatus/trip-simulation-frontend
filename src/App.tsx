@@ -23,6 +23,9 @@ interface TripResult {
   route: [number, number][]; // Array of [lon, lat]
   distance: number;
   stops: Stop[];
+  current_location: [number, number]; // [lat, lon]
+  pickup_location: [number, number]; // [lat, lon]
+  dropoff_location: [number, number];
 }
 
 function App() {
