@@ -32,6 +32,7 @@ function App() {
 
   const [result, setResult] = useState<TripResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  console.log(process.env)
 
   const handleFormSubmit = async (data: Inputs) => {
     try {

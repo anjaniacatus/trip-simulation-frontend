@@ -9,11 +9,10 @@
     "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
     "@types/maplibre-gl": "^1.13.2",
-    "@types/node": "^16.18.126",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "axios": "^1.8.4",
-    "maplibre-gl": "^5.2.0",
+    "maplibre-gl": "^4.7.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-scripts": "5.0.1",
@@ -45,6 +44,7 @@
     ]
   },
   "devDependencies": {
-    "@types/axios": "^0.9.36"
+    "@types/axios": "^0.9.36",
+    "@types/node": "^22.13.14"
   }
 }

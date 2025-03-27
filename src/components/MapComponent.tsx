@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 
-// Define types for the props (the data we get from the parent component)
+// Define types for the props
 interface Stop {
   time: number;
   location: [number, number]; // [lon, lat]
@@ -12,61 +12,64 @@ interface TripResult {
   route: [number, number][]; // Array of [lon, lat]
   distance: number;
   stops: Stop[];
-  current_location: [number, number];
-  pickup_location: [number, number];
-  dropoff_location: [number, number];
+  current_location: [number, number]; // [lat, lon]
+  pickup_location: [number, number]; // [lat, lon]
+  dropoff_location: [number, number]; // [lat, lon]
 }
 
 interface MapComponentProps {
-  result: TripResult | null; // The trip data (route and stops) or null if no data yet
+  result: TripResult | null; // The trip data (route, stops, and locations) or null if no data yet
 }
 
 function MapComponent({ result }: MapComponentProps) {
-  // Create refs to store the map and the map container
-  const mapContainer = useRef<HTMLDivElement | null>(null); // Ref for the div that holds the map
-  const map = useRef<maplibregl.Map | null>(null); // Ref for the MapLibre map instance
+  const mapContainer = useRef<HTMLDivElement | null>(null);
+  const mapUrl = process.env.REACT_APP_MAP_URL;
+  const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
-
-  // State to track if the map's style has loaded
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
-
+  console.log(mapUrl);
   // Initialize the map when the component mounts
   useEffect(() => {
-    // Only create the map if it doesn't already exist and the container is ready
     if (!map.current && mapContainer.current) {
       map.current = new maplibregl.Map({
-        container: mapContainer.current, // The HTML element to render the map in
-        style: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json', // Free MapLibre style
-        center: [-74.0060, 40.7128] as [number, number], // Default center (Boston)
-        zoom: 8, // Default zoom level
+        container: mapContainer.current,
+        style: mapUrl,
+        center: [-71.0589, 42.3601] as [number, number], // Default center (Boston)
+        zoom: 8, // Default zoom level (regional view)
       });
 
-      // Wait for the style to load before allowing sources/layers to be added
+
+      // Wait for the style to load before adding markers and layers
       map.current.on('style.load', () => {
-        setIsStyleLoaded(true); // Set the state to true when the style is loaded
+        setIsStyleLoaded(true);
       });
 
-      // Handle errors if the style fails to load
       map.current.on('error', (e) => {
         console.error('MapLibre GL JS Error:', e);
       });
+
+      // Add a click event to debug map coordinates
+      map.current.on('click', (e) => {
+        console.log('Map clicked at:', e.lngLat);
+      });
     }
 
-    // Cleanup: Remove the map when the component unmounts
+    // Cleanup on unmount
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
         setIsStyleLoaded(false);
       }
+      markers.current.forEach(marker => marker.remove());
+      markers.current = [];
     };
-  }, []); // Empty dependency array means this runs only once when the component mounts
+  }, []);
 
   // Update the map whenever the result changes AND the style is loaded
   useEffect(() => {
-    // Check if we have a result, the map is ready, and the style has loaded
     if (result && map.current && isStyleLoaded) {
-      // Step 1: Clear any existing layers and sources (to avoid duplicates)
+      // Clear existing layers and sources
       if (map.current.getLayer('route') && map.current.getSource('route')) {
         map.current.removeLayer('route');
         map.current.removeSource('route');
@@ -80,8 +83,32 @@ function MapComponent({ result }: MapComponentProps) {
       markers.current.forEach(marker => marker.remove());
       markers.current = [];
 
+      // Swap coordinates from [lat, lon] to [lon, lat] for MapLibre
+      const currentLocation: [number, number] = [result.current_location[1], result.current_location[0]]; // [lon, lat]
+      const pickUpLocation: [number, number] = [result.pickup_location[1], result.pickup_location[0]]; // [lon, lat]
+      const dropOffLocation: [number, number] = [result.dropoff_location[1], result.dropoff_location[0]]; // [lon, lat]
 
-      // Step 2: Add the route to the map
+
+      // Add markers for current, pickup, and drop-off locations
+      const currentMarker = new maplibregl.Marker({ color: '#22c55e' }) // Green
+        .setLngLat(currentLocation)
+        .setPopup(new maplibregl.Popup().setHTML('<strong>Current Location</strong>'))
+        .addTo(map.current);
+      markers.current.push(currentMarker);
+
+      const pickupMarker = new maplibregl.Marker({ color: '#3b82f6' }) // Blue
+        .setLngLat(pickUpLocation)
+        .setPopup(new maplibregl.Popup().setHTML('<strong>Pickup Location</strong>'))
+        .addTo(map.current);
+      markers.current.push(pickupMarker);
+
+      const dropoffMarker = new maplibregl.Marker({ color: '#ef4444' }) // Red
+        .setLngLat(dropOffLocation)
+        .setPopup(new maplibregl.Popup().setHTML('<strong>Drop-off Location</strong>'))
+        .addTo(map.current);
+      markers.current.push(dropoffMarker);
+
+      // Add the route to the map
       map.current.addSource('route', {
         type: 'geojson',
         data: {
@@ -89,7 +116,7 @@ function MapComponent({ result }: MapComponentProps) {
           properties: {},
           geometry: {
             type: 'LineString',
-            coordinates: result.route, // The route coordinates from the API
+            coordinates: result.route, // Already in [lon, lat] format from OSRM
           },
         },
       });
@@ -102,12 +129,12 @@ function MapComponent({ result }: MapComponentProps) {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#3b82f6', // Blue line for the route
+          'line-color': '#3b82f6',
           'line-width': 4,
         },
       });
 
-      // Step 3: Add the stops to the map
+      // Add stops to the map
       map.current.addSource('stops', {
         type: 'geojson',
         data: {
@@ -117,7 +144,7 @@ function MapComponent({ result }: MapComponentProps) {
             properties: { reason: stop.reason },
             geometry: {
               type: 'Point',
-              coordinates: stop.location, // The stop location (lon, lat)
+              coordinates: stop.location, // Already in [lon, lat] format from backend
             },
           })),
         },
@@ -127,55 +154,55 @@ function MapComponent({ result }: MapComponentProps) {
         type: 'circle',
         source: 'stops',
         paint: {
-          'circle-radius': 8, // Size of the stop markers
-          'circle-color': '#ef4444', // Red color for stop markers
+          'circle-radius': 8,
+          'circle-color': '#ef4444',
         },
       });
 
-      // Step 4: Add popups for each stop
+      // Add popups for stops
+      // Add popups for stops
       result.stops.forEach(stop => {
-        new maplibregl.Popup({ offset: 25 })
-          .setLngLat(stop.location)
-          .setHTML(`<strong>${stop.reason}</strong><br>Time: ${stop.time.toFixed(2)} hrs`)
-          .addTo(map.current!);
+        if (map.current) {
+          new maplibregl.Popup({ offset: 25 })
+            .setLngLat(stop.location)
+            .setHTML(`<strong>${stop.reason}</strong><br>Time: ${stop.time.toFixed(2)} hrs`)
+            .addTo(map.current);
+        }
       });
 
-      // Add markers for current, pickup, and drop-off locations
-      // Current Location Marker (Green)
-      const currentMarker = new maplibregl.Marker({ color: '#22c55e' }) // Green marker
-        .setLngLat([result.current_location[0], result.current_location[1]]) // [lon, lat]
-        .setPopup(new maplibregl.Popup().setHTML('<strong>Current Location</strong>'))
-        .addTo(map.current!);
-      markers.current.push(currentMarker);
+      // Fit the map to include the route and all markers
+      const bounds = new maplibregl.LngLatBounds();
 
-      // Pickup Location Marker (Blue)
-      const pickupMarker = new maplibregl.Marker({ color: '#3b82f6' }) // Blue marker
-        .setLngLat([result.pickup_location[0], result.pickup_location[1]]) // [lon, lat]
-        .setPopup(new maplibregl.Popup().setHTML('<strong>Pickup Location</strong>'))
-        .addTo(map.current!);
-      markers.current.push(pickupMarker);
+      // Add route coordinates to bounds
+      result.route.forEach(coord => {
+        bounds.extend(coord);
+      });
 
-      // Drop-off Location Marker (Red)
-      const dropoffMarker = new maplibregl.Marker({ color: '#ef4444' }) // Red marker
-        .setLngLat([result.dropoff_location[0], result.dropoff_location[1]]) // [lon, lat]
-        .setPopup(new maplibregl.Popup().setHTML('<strong>Drop-off Location</strong>'))
-        .addTo(map.current!);
-      markers.current.push(dropoffMarker);
+      // Add marker coordinates to bounds
+      bounds.extend(currentLocation);
+      bounds.extend(pickUpLocation);
+      bounds.extend(dropOffLocation);
 
-      // Step 5: Fit the map to the route bounds (so the whole route is visible)
-      const coordinates = result.route;
-      const bounds = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-      }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-      map.current.fitBounds(bounds, { padding: 50 });
+      // Fit the map to the bounds with padding and zoom constraints
+      map.current.fitBounds(bounds, {
+        padding: 50,
+        maxZoom: 15,
+        minZoom: 8,
+      });
+
+      // Log the final center and zoom after fitBounds
+      setTimeout(() => {
+        console.info('Map Center (after fitBounds):', map.current!.getCenter());
+        console.info('Map Zoom (after fitBounds):', map.current!.getZoom());
+      }, 1000); // Wait 1 second for the map to settle
     }
-  }, [result, isStyleLoaded]); // This effect runs when result OR isStyleLoaded changes
+  }, [result, isStyleLoaded]);
 
-  // Render the map container
   return (
     <div
       ref={mapContainer}
-      className="w-full h-[400px] rounded-lg shadow-lg"
+      className="w-full h-[600px] rounded-lg shadow-lg"
+      style={{ position: 'relative' }}
     />
   );
 }
