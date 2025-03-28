@@ -29,6 +29,10 @@ function MapComponent({ result }: MapComponentProps) {
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null); // [lon, lat]
 
+  // Store initial values of result and userLocation to avoid stale closures in the first useEffect
+  const initialResultRef = useRef(result);
+  const initialUserLocationRef = useRef(userLocation);
+
   // Get the user's location using the Geolocation API
   useEffect(() => {
     if (navigator.geolocation) {
@@ -54,19 +58,23 @@ function MapComponent({ result }: MapComponentProps) {
   // Initialize the map when the component mounts
   useEffect(() => {
     if (!map.current && mapContainer.current) {
-      // Determine the initial center based on result.current_location or userLocation
+      // Use the initial values of result and userLocation
+      const initialResult = initialResultRef.current;
+      const initialUserLocation = initialUserLocationRef.current;
+
+      // Determine the initial center based on initialResult.current_location or initialUserLocation
       let initialCenter: [number, number] = [-71.0589, 42.3601]; // Default to Boston
-      if (result && result.current_location) {
+      if (initialResult && initialResult.current_location) {
         // If current_location is provided, use it (swap to [lon, lat])
-        initialCenter = [result.current_location[1], result.current_location[0]];
-      } else if (userLocation) {
+        initialCenter = [initialResult.current_location[1], initialResult.current_location[0]];
+      } else if (initialUserLocation) {
         // If current_location is not provided, use the user's location
-        initialCenter = userLocation;
+        initialCenter = initialUserLocation;
       }
 
       map.current = new maplibregl.Map({
         container: mapContainer.current,
-        style: mapUrl, // Replace with your MapTiler key
+        style: mapUrl!, // Use non-null assertion since mapUrl is guaranteed to exist
         center: initialCenter,
         zoom: 8, // Default zoom level (regional view)
       });
@@ -74,7 +82,7 @@ function MapComponent({ result }: MapComponentProps) {
       // Wait for the style to load before adding markers and layers
       map.current.on('style.load', () => {
         setIsStyleLoaded(true);
-        console.log('Style loaded successfully');
+        console.info('Style loaded successfully');
       });
 
       map.current.on('error', (e) => {
@@ -83,7 +91,7 @@ function MapComponent({ result }: MapComponentProps) {
 
       // Add a click event to debug map coordinates
       map.current.on('click', (e) => {
-        console.log('Map clicked at:', e.lngLat);
+        console.info('Map clicked at:', e.lngLat);
       });
     }
 
@@ -99,17 +107,28 @@ function MapComponent({ result }: MapComponentProps) {
     };
   }, []); // Empty dependency array ensures the map is only initialized once
 
+  // Extract the three locations to use as dependencies
+  const currentLocationLat = result?.current_location?.[0] ?? null;
+  const currentLocationLon = result?.current_location?.[1] ?? null;
+  const pickupLocationLat = result?.pickup_location?.[0] ?? null;
+  const pickupLocationLon = result?.pickup_location?.[1] ?? null;
+  const dropoffLocationLat = result?.dropoff_location?.[0] ?? null;
+  const dropoffLocationLon = result?.dropoff_location?.[1] ?? null;
+
   // Update the map only when the three locations change
   useEffect(() => {
     if (!map.current || !isStyleLoaded) return;
 
-    // Extract the three locations to use as dependencies
-    const currentLocationRaw = result?.current_location || null;
-    const pickupLocationRaw = result?.pickup_location || null;
-    const dropoffLocationRaw = result?.dropoff_location || null;
-
-    // If no result or locations are provided, clear the map and return
-    if (!result || !currentLocationRaw || !pickupLocationRaw || !dropoffLocationRaw) {
+    // If no result or locations are provided, clear the map and center on userLocation
+    if (
+      !result ||
+      currentLocationLat === null ||
+      currentLocationLon === null ||
+      pickupLocationLat === null ||
+      pickupLocationLon === null ||
+      dropoffLocationLat === null ||
+      dropoffLocationLon === null
+    ) {
       // Clear existing layers and sources
       if (map.current.getLayer('route') && map.current.getSource('route')) {
         map.current.removeLayer('route');
@@ -147,11 +166,10 @@ function MapComponent({ result }: MapComponentProps) {
     markers.current = [];
 
     // Swap coordinates from [lat, lon] to [lon, lat] for MapLibre
-    const currentLocation: [number, number] = [currentLocationRaw[1], currentLocationRaw[0]]; // [lon, lat]
-    const pickUpLocation: [number, number] = [pickupLocationRaw[1], pickupLocationRaw[0]]; // [lon, lat]
-    const dropOffLocation: [number, number] = [dropoffLocationRaw[1], dropoffLocationRaw[0]]; // [lon, lat]
+    const currentLocation: [number, number] = [currentLocationLon, currentLocationLat]; // [lon, lat]
+    const pickUpLocation: [number, number] = [pickupLocationLon, pickupLocationLat]; // [lon, lat]
+    const dropOffLocation: [number, number] = [dropoffLocationLon, dropoffLocationLat]; // [lon, lat]
 
-    console.log('Marker Coordinates (after swap):', currentLocation, pickUpLocation, dropOffLocation);
 
     // Add markers for current, pickup, and drop-off locations
     const currentMarker = new maplibregl.Marker({ color: '#22c55e' }) // Green
@@ -230,8 +248,9 @@ function MapComponent({ result }: MapComponentProps) {
           .setLngLat(stop.location)
           .setHTML(`<strong>${stop.reason}</strong><br>Time: ${stop.time.toFixed(2)} hrs`)
           .addTo(map.current);
-        }
+      }
     });
+
     // Fit the map to include the route and all markers
     const bounds = new maplibregl.LngLatBounds();
 
@@ -244,7 +263,6 @@ function MapComponent({ result }: MapComponentProps) {
     bounds.extend(currentLocation);
     bounds.extend(pickUpLocation);
     bounds.extend(dropOffLocation);
-
 
     // Fit the map to the bounds with padding and zoom constraints
     map.current.fitBounds(bounds, {
@@ -260,12 +278,12 @@ function MapComponent({ result }: MapComponentProps) {
     }, 1000); // Wait 1 second for the map to settle
   }, [
     isStyleLoaded,
-    result?.current_location?.[0], // Depend on lat of current_location
-    result?.current_location?.[1], // Depend on lon of current_location
-    result?.pickup_location?.[0],  // Depend on lat of pickup_location
-    result?.pickup_location?.[1],  // Depend on lon of pickup_location
-    result?.dropoff_location?.[0], // Depend on lat of dropoff_location
-    result?.dropoff_location?.[1], // Depend on lon of dropoff_location
+    currentLocationLat,
+    currentLocationLon,
+    pickupLocationLat,
+    pickupLocationLon,
+    dropoffLocationLat,
+    dropoffLocationLon,
   ]);
 
   return (
@@ -276,4 +294,5 @@ function MapComponent({ result }: MapComponentProps) {
     />
   );
 }
+
 export default MapComponent;
