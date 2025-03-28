@@ -37,7 +37,7 @@ function App() {
   const handleFormSubmit = async (data: Inputs) => {
     try {
       // Send the form data to the backend
-      const response = await axios.post('{urlBase}/plan_trip/', {
+      const response = await axios.post(urlBase+"/plan_trip/", {
         current_location: data.current,
         pickup_location: data.pickup,
         dropoff_location: data.dropoff,
@@ -46,7 +46,7 @@ function App() {
       // Update the result state with the API response
       setResult(response.data as TripResult);
     } catch (error: any) {
-      setError(error.response?.data?.error || 'An error ocurred while planning the trip');
+      setError(error.response?.data?.error || "An error ocurred while planning the trip");
     }
   };
   return (
