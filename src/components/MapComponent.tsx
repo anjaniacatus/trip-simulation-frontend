@@ -105,7 +105,7 @@ function MapComponent({ result }: MapComponentProps) {
       markers.current.forEach(marker => marker.remove());
       markers.current = [];
     };
-  }, []); // Empty dependency array ensures the map is only initialized once
+  }, [mapUrl]); // Empty dependency array ensures the map is only initialized once
 
   // Extract the three locations to use as dependencies
   const currentLocationLat = result?.current_location?.[0] ?? null;
@@ -284,6 +284,8 @@ function MapComponent({ result }: MapComponentProps) {
     pickupLocationLon,
     dropoffLocationLat,
     dropoffLocationLon,
+    result,
+    userLocation,
   ]);
 
   return (
