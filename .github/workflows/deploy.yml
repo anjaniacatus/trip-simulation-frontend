@@ -15,13 +15,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '16'  # Specify the Node.js version you want to use
+          node-version: '22.13.1'  
 
       - name: Install dependencies
         run: npm install
 
       - name: Build project
-        run: npm run build  # Adjust this if your project uses a different build command
+        run: npm run build  
 
       - name: Deploy to Vercel
         env:
