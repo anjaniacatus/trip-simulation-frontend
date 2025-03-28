@@ -32,12 +32,12 @@ function App() {
 
   const [result, setResult] = useState<TripResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  console.log(process.env)
+  const urlBase = process.env.REACT_APP_ENDPOINT_URL;
 
   const handleFormSubmit = async (data: Inputs) => {
     try {
       // Send the form data to the backend
-      const response = await axios.post('http://127.0.0.1:8000/plan_trip/', {
+      const response = await axios.post('{urlBase}/plan_trip/', {
         current_location: data.current,
         pickup_location: data.pickup,
         dropoff_location: data.dropoff,
