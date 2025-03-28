@@ -37,7 +37,7 @@ function App() {
   const handleFormSubmit = async (data: Inputs) => {
     try {
       // Send the form data to the backend
-      const response = await axios.post(urlBase+"/plan_trip/", {
+      const response = await axios.post(urlBase+"/api/plan_trip/", {
         current_location: data.current,
         pickup_location: data.pickup,
         dropoff_location: data.dropoff,
