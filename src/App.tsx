@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useRef } from 'react';
 import axios, { AxiosError, isCancel } from 'axios';
 import debounce from 'lodash/debounce';
@@ -17,7 +16,14 @@ interface DailyLog {
   driving_hours: number;
   on_duty_not_driving_hours: number;
   off_duty_hours: number;
+  sleeper_berth_hours: number;
   total_hours: number;
+}
+
+interface Activity {
+  start_time: string;
+  end_time: string;
+  activity_type: string;
 }
 
 interface Inputs {
@@ -36,6 +42,7 @@ interface TripResult {
   pickup_location: [number, number];
   dropoff_location: [number, number];
   daily_logs: DailyLog[];
+  activities: Activity[];  // Added for download
 }
 
 function App() {
@@ -127,7 +134,7 @@ function App() {
             <p className="text-gray-600 mb-2">Distance: {result.distance.toFixed(2)} miles</p>
             <p className="text-gray-600 mb-4">Duration: {result.duration.toFixed(2)} hours</p>
             <MapComponent result={result} />
-            <DailyLogsComponent dailyLogs={result.daily_logs} />
+            <DailyLogsComponent dailyLogs={result.daily_logs} activities={result.activities} />
           </div>
         )}
       </div>
