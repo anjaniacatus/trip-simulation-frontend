@@ -1,13 +1,23 @@
+// src/App.tsx
 import React, { useState, useRef } from 'react';
 import axios, { AxiosError, isCancel } from 'axios';
 import debounce from 'lodash/debounce';
 import TripForm from './components/TripFormComponent';
 import MapComponent from './components/MapComponent';
+import DailyLogsComponent from './components/DailyLogsComponent';
 
 interface Stop {
   time: number;
   location: [number, number];
   reason: string;
+}
+
+interface DailyLog {
+  date: string;
+  driving_hours: number;
+  on_duty_not_driving_hours: number;
+  off_duty_hours: number;
+  total_hours: number;
 }
 
 interface Inputs {
@@ -20,10 +30,12 @@ interface Inputs {
 interface TripResult {
   route: [number, number][];
   distance: number;
+  duration: number;
   stops: Stop[];
   current_location: [number, number];
   pickup_location: [number, number];
   dropoff_location: [number, number];
+  daily_logs: DailyLog[];
 }
 
 function App() {
@@ -79,7 +91,6 @@ function App() {
     }
   };
 
-  // Move debounce inline to satisfy exhaustive-deps
   const handleFormSubmit = (data: Inputs) => {
     const debouncedPlanTrip = debounce(() => {
       planTrip(data);
@@ -113,7 +124,10 @@ function App() {
         {result && !isLoading && (
           <div className="mt-6 p-4 bg-white rounded-lg shadow-md">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Trip Result</h2>
+            <p className="text-gray-600 mb-2">Distance: {result.distance.toFixed(2)} miles</p>
+            <p className="text-gray-600 mb-4">Duration: {result.duration.toFixed(2)} hours</p>
             <MapComponent result={result} />
+            <DailyLogsComponent dailyLogs={result.daily_logs} />
           </div>
         )}
       </div>
